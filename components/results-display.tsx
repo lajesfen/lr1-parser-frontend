@@ -19,13 +19,18 @@ function DFAStateCard({ state, index }: { state: any; index: number }) {
       {/* Items */}
       <div className="space-y-2 mb-4">
         {state.items.map((item: any, idx: number) => {
-          const bodyWithDot = [...item.body.slice(0, item.dot_pos), "•", ...item.body.slice(item.dot_pos)]
+          // Usar dot_position en lugar de dot_pos
+          const bodyWithDot = [
+            ...item.body.slice(0, item.dot_position), 
+            "•", 
+            ...item.body.slice(item.dot_position)
+          ]
           return (
             <div key={idx} className="text-xs font-mono bg-secondary/30 rounded p-2 text-foreground">
               <span className="text-foreground font-semibold">{item.head}</span>
               <span className="text-muted-foreground"> → </span>
               <span>{bodyWithDot.join(" ")}</span>
-              <span className="text-muted-foreground">, {item.search_symbol}</span>
+              <span className="text-muted-foreground">, {item.lookahead}</span>
             </div>
           )
         })}
@@ -34,7 +39,7 @@ function DFAStateCard({ state, index }: { state: any; index: number }) {
       {/* Transitions and Reductions */}
       <div className="grid grid-cols-2 gap-3">
         {/* Transitions */}
-        {Object.keys(state.transitions).length > 0 && (
+        {Object.keys(state.transitions || {}).length > 0 && (
           <div>
             <p className="text-xs text-muted-foreground font-semibold mb-2">Transitions</p>
             <div className="space-y-1">
@@ -50,13 +55,15 @@ function DFAStateCard({ state, index }: { state: any; index: number }) {
         )}
 
         {/* Reductions */}
-        {Object.keys(state.reductions).length > 0 && (
+        {Object.keys(state.reductions || {}).length > 0 && (
           <div>
             <p className="text-xs text-muted-foreground font-semibold mb-2">Reductions</p>
             <div className="space-y-1">
               {Object.entries(state.reductions).map(([symbol, item]: [string, any]) => (
                 <div key={symbol} className="text-xs">
-                  <span className="px-2 py-1 bg-orange-500/20 text-orange-400 rounded font-mono">{symbol}: r</span>
+                  <span className="px-2 py-1 bg-orange-500/20 text-orange-400 rounded font-mono">
+                    {symbol}: {item.head} → {item.body.join(" ")}
+                  </span>
                 </div>
               ))}
             </div>
@@ -212,57 +219,67 @@ function ParseTraceDisplay({ data }: { data: any }) {
             : "bg-red-500/10 border-red-500/30 text-red-400"
         }`}
       >
-        <p className="text-sm font-semibold">{accepted ? "✓ Accepted" : "✗ Rejected"}</p>
+        <p className="text-sm font-semibold">{accepted ? "✓ Cadena aceptada" : "✗ Cadena rechazada"}</p>
         {error && <p className="text-xs mt-1 text-muted-foreground">{error}</p>}
       </div>
 
-      {/* Steps */}
+      {/* Steps Table */}
       <div className="space-y-2">
-        <p className="text-sm font-semibold text-foreground">Parsing Steps ({steps.length})</p>
-        <div className="bg-background rounded-lg border border-border overflow-hidden max-h-96 overflow-y-auto">
-          <div className="space-y-0">
-            {steps.map((step: any, idx: number) => (
-              <div
-                key={idx}
-                className={`p-4 border-b border-border last:border-b-0 ${
-                  idx % 2 === 0 ? "bg-background" : "bg-secondary/20"
-                }`}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <span className="text-xs font-semibold text-primary-foreground bg-primary/20 px-2 py-1 rounded">
-                    Step {step.step}
-                  </span>
-                  <span
-                    className={`text-xs font-mono px-2 py-1 rounded ${
-                      step.action.startsWith("s")
-                        ? "bg-blue-500/20 text-blue-400"
-                        : step.action.startsWith("r")
-                          ? "bg-orange-500/20 text-orange-400"
-                          : step.action === "acc"
-                            ? "bg-green-500/20 text-green-400"
-                            : "bg-secondary/30 text-muted-foreground"
+        <p className="text-sm font-semibold text-foreground">DERIVACIÓN LR(1)</p>
+        <div className="bg-background rounded-lg border border-border overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs font-mono">
+              <thead>
+                <tr className="border-b-2 border-border bg-secondary/50">
+                  <th className="px-4 py-3 text-left text-muted-foreground font-semibold">Paso</th>
+                  <th className="px-4 py-3 text-left text-muted-foreground font-semibold">Pila</th>
+                  <th className="px-4 py-3 text-left text-muted-foreground font-semibold">Entrada</th>
+                  <th className="px-4 py-3 text-center text-muted-foreground font-semibold">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {steps.map((step: any, idx: number) => (
+                  <tr
+                    key={idx}
+                    className={`border-b border-border last:border-b-0 ${
+                      idx % 2 === 0 ? "bg-background" : "bg-secondary/20"
                     }`}
                   >
-                    {step.action}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div>
-                    <p className="text-muted-foreground font-semibold mb-1">Stack</p>
-                    <div className="font-mono text-foreground bg-secondary/30 rounded p-2 max-h-20 overflow-y-auto">
-                      [{step.stack.join(", ")}]
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground font-semibold mb-1">Input</p>
-                    <div className="font-mono text-foreground bg-secondary/30 rounded p-2 max-h-20 overflow-y-auto">
-                      [{step.input.join(", ")}]
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
+                    <td className="px-4 py-3 text-muted-foreground">{step.step}</td>
+                    <td className="px-4 py-3 text-foreground">
+                      {step.stack.map((item: any, i: number) => (
+                        <span key={i}>
+                          {typeof item === 'number' ? (
+                            <span className="text-primary-foreground">{item}</span>
+                          ) : (
+                            <span className="text-accent">{item}</span>
+                          )}
+                          {i < step.stack.length - 1 && " "}
+                        </span>
+                      ))}
+                    </td>
+                    <td className="px-4 py-3 text-foreground">
+                      {step.input.join(" ")}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span
+                        className={`px-2 py-1 rounded font-semibold ${
+                          step.action.startsWith("s")
+                            ? "bg-blue-500/20 text-blue-400"
+                            : step.action.startsWith("r")
+                              ? "bg-orange-500/20 text-orange-400"
+                              : step.action === "acc"
+                                ? "bg-green-500/20 text-green-400"
+                                : "bg-red-500/20 text-red-400"
+                        }`}
+                      >
+                        {step.action}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
